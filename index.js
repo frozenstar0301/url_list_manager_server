@@ -60,7 +60,7 @@ bot.command('start', async (ctx) => {
     });
     
     // Send welcome message with checkmark emoji
-    await ctx.reply('✅ You\'re subscribed! You\'ll be notified for new domain lists.');
+    await ctx.reply(`✅ You\'re subscribed! You\'ll be notified for new domain lists. ${botUsername}`);
     
     // Send "Open Manager" button - this will just open the bot
     await ctx.reply('Use the button below to open the bot:', {
