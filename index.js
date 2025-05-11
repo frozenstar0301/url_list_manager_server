@@ -126,7 +126,7 @@ async function sendNotificationToAll(listDate) {
         await bot.telegram.sendMessage(subscriber.userId, `📋 View List (${formattedDate})`, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: `View List (${formattedDate})`, url: `https://t.me/${botUsername}` }]
+              [{ text: `View List (${formattedDate})`, url: `https://t.me/saullistmanagerbot` }]
             ]
           }
         });
