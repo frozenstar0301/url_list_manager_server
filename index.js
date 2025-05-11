@@ -86,7 +86,7 @@ bot.command('start', async (ctx) => {
       await ctx.reply(`📋 View List (${formattedDate})`, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.WEB_APP_URL}?date=${listDate}` } }]
+            [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.FRONTEND_URL}?date=${listDate}` } }]
           ]
         }
       });
@@ -126,7 +126,7 @@ async function sendNotificationToAll(listDate) {
         await bot.telegram.sendMessage(subscriber.userId, `📋 View List (${formattedDate})`, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.WEB_APP_URL}?date=${listDate}` } }]
+              [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.FRONTEND_URL}?date=${listDate}` } }]
             ]
           }
         });
