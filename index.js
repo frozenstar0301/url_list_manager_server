@@ -11,6 +11,7 @@ const {
   query, 
   orderBy, 
   limit, 
+  where,
   serverTimestamp 
 } = require('firebase/firestore');
 const express = require('express');
@@ -36,15 +37,12 @@ const db = getFirestore(app);
 // Initialize Telegram bot
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Debug function to log errors to chat
-async function logErrorToChat(ctx, stage, error) {
-  try {
-    const errorMessage = `🐞 Debug [${stage}]:\n${error.message}\n\nStack: ${error.stack ? error.stack.substring(0, 200) + '...' : 'No stack trace'}`;
-    await ctx.reply(errorMessage);
-  } catch (logError) {
-    console.error('Error logging to chat:', logError);
-  }
-}
+// Get bot username for deep linking
+let botUsername = '';
+bot.telegram.getMe().then(botInfo => {
+  botUsername = botInfo.username;
+  console.log(`Bot username: @${botUsername}`);
+});
 
 // Start command
 bot.command('start', async (ctx) => {
@@ -64,75 +62,38 @@ bot.command('start', async (ctx) => {
     // Send welcome message with checkmark emoji
     await ctx.reply('✅ You\'re subscribed! You\'ll be notified for new domain lists.');
     
-    try {
-      // Log the web app URL for debugging
-      await ctx.reply(`🔍 Debug: Using web app URL: ${process.env.WEB_APP_URL || 'NOT SET!'}`);
+    // Send "Open Manager" button with web app
+    await ctx.reply('Use the button below to open the list manager:', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Open Manager', web_app: { url: process.env.FRONTEND_URL } }]
+        ]
+      }
+    });
+    
+    // Get the most recent list
+    const listsRef = collection(db, 'lists');
+    const q = query(listsRef, orderBy('createdAt', 'desc'), limit(1));
+    const recentListSnapshot = await getDocs(q);
+    
+    if (!recentListSnapshot.empty) {
+      const listDoc = recentListSnapshot.docs[0];
+      const listData = listDoc.data();
+      const listDate = listData.date || new Date().toISOString().split('T')[0];
+      const formattedDate = listDate.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1-$2-$3');
       
-      // Try sending a regular keyboard button first
-      await ctx.reply('Attempting to send keyboard button...', {
-        reply_markup: {
-          keyboard: [
-            [{ text: 'Test Regular Button' }]
-          ],
-          resize_keyboard: true
-        }
-      });
-      
-      // Now try the web_app button
-      await ctx.reply('Use the button below to open the list manager:', {
-        reply_markup: {
-          keyboard: [
-            [{ text: 'Open Manager', web_app: { url: process.env.WEB_APP_URL } }]
-          ],
-          resize_keyboard: true
-        }
-      });
-      
-      // Also try an inline button version
-      await ctx.reply('Or use this inline button:', {
+      // Send the most recent list button with web app
+      await ctx.reply(`📋 View List (${formattedDate})`, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: 'Open Manager (Inline)', web_app: { url: process.env.WEB_APP_URL } }]
+            [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.WEB_APP_URL}?date=${listDate}` } }]
           ]
         }
       });
-      
-    } catch (buttonError) {
-      await logErrorToChat(ctx, 'BUTTON_CREATION', buttonError);
-    }
-    
-    try {
-      // Get the most recent list
-      const listsRef = collection(db, 'lists');
-      const q = query(listsRef, orderBy('createdAt', 'desc'), limit(1));
-      const recentListSnapshot = await getDocs(q);
-      
-      if (!recentListSnapshot.empty) {
-        const listDoc = recentListSnapshot.docs[0];
-        const listData = listDoc.data();
-        await ctx.reply(`📋 Found recent list: ${JSON.stringify(listData, null, 2).substring(0, 200)}`);
-        
-        const listDate = listData.date || new Date().toISOString().split('T')[0];
-        const formattedDate = listDate.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1-$2-$3');
-        
-        // Send the most recent list button
-        await ctx.reply(`📋 View List (${formattedDate})`, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.WEB_APP_URL}?date=${listDate}` } }]
-            ]
-          }
-        });
-      } else {
-        await ctx.reply('No recent lists found in the database.');
-      }
-    } catch (listError) {
-      await logErrorToChat(ctx, 'RECENT_LIST', listError);
     }
   } catch (error) {
     console.error('Error in start command:', error);
     await ctx.reply('Sorry, there was an error processing your request.');
-    await logErrorToChat(ctx, 'START_COMMAND', error);
   }
 });
 
@@ -154,15 +115,14 @@ async function sendNotificationToAll(listDate) {
     // Send notification to each subscriber
     let successCount = 0;
     let failCount = 0;
-    let errors = [];
     
     for (const doc of subscribersSnapshot.docs) {
       const subscriber = doc.data();
       try {
-        // Send "New list posted!" message
+        // Send "New list posted!" message with the NEW badge
         await bot.telegram.sendMessage(subscriber.userId, '🆕 New list posted!');
         
-        // Then send button
+        // Send the button to view the list with web app
         await bot.telegram.sendMessage(subscriber.userId, `📋 View List (${formattedDate})`, {
           reply_markup: {
             inline_keyboard: [
@@ -174,28 +134,18 @@ async function sendNotificationToAll(listDate) {
         successCount++;
       } catch (error) {
         console.error(`Error sending notification to user ${subscriber.userId}:`, error);
-        errors.push(`User ${subscriber.userId}: ${error.message}`);
         failCount++;
-        
-        // Try to send error info to the user
-        try {
-          await bot.telegram.sendMessage(subscriber.userId, 
-            `⚠️ Error sending notification: ${error.message.substring(0, 100)}`);
-        } catch (logError) {
-          console.error('Failed to send error log to user:', logError);
-        }
       }
     }
     
     console.log(`Notifications sent: ${successCount} success, ${failCount} failed`);
     return { 
       success: true, 
-      message: `Notifications sent: ${successCount} success, ${failCount} failed`,
-      errors: errors
+      message: `Notifications sent: ${successCount} success, ${failCount} failed` 
     };
   } catch (error) {
     console.error('Error sending notifications:', error);
-    return { success: false, message: 'Error sending notifications', error: error.message };
+    return { success: false, message: 'Error sending notifications' };
   }
 }
 
@@ -225,19 +175,9 @@ expressApp.post('/notify', async (req, res) => {
     console.error('Error in notify endpoint:', error);
     return res.status(500).json({ 
       success: false, 
-      message: 'Server error',
-      error: error.message
+      message: 'Server error' 
     });
   }
-});
-
-// Debug endpoint
-expressApp.get('/debug-env', (req, res) => {
-  res.json({
-    webAppUrl: process.env.WEB_APP_URL || 'NOT SET',
-    botToken: process.env.BOT_TOKEN ? 'SET (hidden)' : 'NOT SET',
-    firebaseConfigSet: !!firebaseConfig.apiKey
-  });
 });
 
 // Health check endpoint
