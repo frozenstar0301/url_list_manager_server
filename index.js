@@ -66,7 +66,7 @@ bot.command('start', async (ctx) => {
     await ctx.reply('Use the button below to open the bot:', {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Open Manager', url: `https://t.me/${botUsername}` }]
+          [{ text: 'Open Manager', url: `tg://resolve?domain=${botUsername}`}]
         ]
       }
     });
