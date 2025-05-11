@@ -1,5 +1,5 @@
 // bot-server/index.js
-const { Telegraf } = require('telegraf');
+const { Telegraf, Markup } = require('telegraf');
 const { initializeApp } = require('firebase/app');
 const { 
   getFirestore, 
@@ -62,12 +62,14 @@ bot.command('start', async (ctx) => {
     // Send welcome message with checkmark emoji
     await ctx.reply('✅ You\'re subscribed! You\'ll be notified for new domain lists.');
     
-    // Send "Open Manager" button with web app
+    // Send "Open Manager" button
     await ctx.reply('Use the button below to open the list manager:', {
       reply_markup: {
-        inline_keyboard: [
-          [{ text: 'Open Manager', web_app: { url: process.env.FRONTEND_URL } }]
-        ]
+        keyboard: [
+          [{ text: 'Open Manager', web_app: { url: process.env.WEB_APP_URL } }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: false
       }
     });
     
@@ -82,7 +84,7 @@ bot.command('start', async (ctx) => {
       const listDate = listData.date || new Date().toISOString().split('T')[0];
       const formattedDate = listDate.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1-$2-$3');
       
-      // Send the most recent list button with web app
+      // Send the most recent list button
       await ctx.reply(`📋 View List (${formattedDate})`, {
         reply_markup: {
           inline_keyboard: [
@@ -119,11 +121,8 @@ async function sendNotificationToAll(listDate) {
     for (const doc of subscribersSnapshot.docs) {
       const subscriber = doc.data();
       try {
-        // Send "New list posted!" message with the NEW badge
-        await bot.telegram.sendMessage(subscriber.userId, '🆕 New list posted!');
-        
-        // Send the button to view the list with web app
-        await bot.telegram.sendMessage(subscriber.userId, `📋 View List (${formattedDate})`, {
+        // Send "New list posted!" message with button to view the list
+        await bot.telegram.sendMessage(subscriber.userId, '🆕 New list posted!', {
           reply_markup: {
             inline_keyboard: [
               [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.WEB_APP_URL}?date=${listDate}` } }]
