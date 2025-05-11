@@ -60,13 +60,13 @@ bot.command('start', async (ctx) => {
     });
     
     // Send welcome message with checkmark emoji
-    await ctx.reply(`✅ You\'re subscribed! You\'ll be notified for new domain lists. ${botUsername}`);
+    await ctx.reply('✅ You\'re subscribed! You\'ll be notified for new domain lists.');
     
-    // Send "Open Manager" button - this will just open the bot
-    await ctx.reply('Use the button below to open the bot:', {
+    // Send "Open Manager" button with web app
+    await ctx.reply('Use the button below to open the list manager:', {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Open Manager', url: `tg://resolve?domain=${botUsername}`}]
+          [{ text: 'Open Manager', web_app: { url: process.env.FRONTEND_URL } }]
         ]
       }
     });
@@ -82,11 +82,11 @@ bot.command('start', async (ctx) => {
       const listDate = listData.date || new Date().toISOString().split('T')[0];
       const formattedDate = listDate.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1-$2-$3');
       
-      // Send the most recent list button - this will just open the bot
+      // Send the most recent list button with web app
       await ctx.reply(`📋 View List (${formattedDate})`, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: `View List (${formattedDate})`, url: `https://t.me/${botUsername}` }]
+            [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.WEB_APP_URL}?date=${listDate}` } }]
           ]
         }
       });
@@ -122,11 +122,11 @@ async function sendNotificationToAll(listDate) {
         // Send "New list posted!" message with the NEW badge
         await bot.telegram.sendMessage(subscriber.userId, '🆕 New list posted!');
         
-        // Send the button to view the list - this will just open the bot
+        // Send the button to view the list with web app
         await bot.telegram.sendMessage(subscriber.userId, `📋 View List (${formattedDate})`, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: `View List (${formattedDate})`, url: `https://t.me/saullistmanagerbot` }]
+              [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.WEB_APP_URL}?date=${listDate}` } }]
             ]
           }
         });
