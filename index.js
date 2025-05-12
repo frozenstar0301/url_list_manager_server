@@ -62,15 +62,6 @@ bot.command('start', async (ctx) => {
     // Send welcome message with checkmark emoji
     await ctx.reply('✅ You\'re subscribed! You\'ll be notified for new domain lists.');
     
-    // Send "Open Manager" button with web app
-    await ctx.reply('Use the button below to open the list manager:', {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: 'Open Manager', web_app: { url: process.env.FRONTEND_URL } }]
-        ]
-      }
-    });
-    
     // Get the most recent list
     const listsRef = collection(db, 'lists');
     const q = query(listsRef, orderBy('createdAt', 'desc'), limit(1));
@@ -118,12 +109,9 @@ async function sendNotificationToAll(listDate) {
     
     for (const doc of subscribersSnapshot.docs) {
       const subscriber = doc.data();
-      try {
-        // Send "New list posted!" message with the NEW badge
-        await bot.telegram.sendMessage(subscriber.userId, '🆕 New list posted!');
-        
+      try {        
         // Send the button to view the list with web app
-        await bot.telegram.sendMessage(subscriber.userId, `📋 View List (${formattedDate})`, {
+        await bot.telegram.sendMessage(subscriber.userId, `📋 🆕 New list posted! View List (${formattedDate})`, {
           reply_markup: {
             inline_keyboard: [
               [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.FRONTEND_URL}?date=${listDate}` } }]
