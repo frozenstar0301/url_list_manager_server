@@ -111,7 +111,7 @@ async function sendNotificationToAll(listDate) {
       const subscriber = doc.data();
       try {        
         // Send the button to view the list with web app
-        await bot.telegram.sendMessage(subscriber.userId, `📋 🆕 New list posted! View List (${formattedDate})`, {
+        await bot.telegram.sendMessage(subscriber.userId, `🆕 New list posted!`, {
           reply_markup: {
             inline_keyboard: [
               [{ text: `View List (${formattedDate})`, web_app: { url: `${process.env.FRONTEND_URL}?date=${listDate}` } }]
